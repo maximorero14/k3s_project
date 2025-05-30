@@ -5,7 +5,7 @@ metadata:
   labels:
     app: k8-auth
 spec:
-  replicas: 2  # Ejecuta 2 pods
+  replicas: 3
   selector:
     matchLabels:
       app: k8-auth
