@@ -2,23 +2,18 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: prometheus
-  namespace: argocd           # deja “argocd” (el ns donde corre Argo CD)
+  namespace: argocd
 spec:
   project: default
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring     # Argo lo crea si no existe
+    namespace: monitoring
 
   source:
-    # Chart oficial remoto
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: kube-prometheus-stack
-    targetRevision: "~72.0"
-    helm:
-      # Usa TU archivo de valores que está en el repo Git
-      valueFiles:
-        - $values/prometheus/values.yaml  # ruta relativa a la raíz del repo
+    repoURL: https://github.com/tu-org/k3s_project.git   # ⇐ tu repo
+    targetRevision: main
+    path: monitoring/prometheus                          # ruta al wrapper chart
 
   syncPolicy:
     automated:

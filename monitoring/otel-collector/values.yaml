@@ -1,5 +1,3 @@
-# Helm values for opentelemetry-collector ≥ 0.84.0
-# Namespace sugerido: observability
 mode: deployment
 
 serviceAccount:
@@ -12,7 +10,6 @@ config:
       protocols:
         grpc:
         http:
-    # Métricas internas del propio Collector (scrape en :8888)
     prometheus/self:
       config:
         scrape_configs:
@@ -28,11 +25,6 @@ config:
     prometheus:
       endpoint: "0.0.0.0:8889"
       namespace: otel
-    # Tempo (traces) – descomenta cuando tengas Tempo
-    # tempo:
-    #   endpoint: tempo.tempo.svc.cluster.local:4317
-    #   tls:
-    #     insecure: true
 
   service:
     pipelines:
@@ -45,15 +37,13 @@ config:
         processors: [batch]
         exporters: []        # añade "tempo" cuando esté listo
 
-# Permite que Prometheus lo descubra automáticamente
 serviceMonitor:
   enabled: true
   interval: 15s
   labels:
-    release: prometheus      # coincide con label del Prom Operator chart
+    release: prometheus
 
 ports:
-  # puerto de scrape para el exporter Prometheus
   prometheus:
     enabled: true
     containerPort: 8889

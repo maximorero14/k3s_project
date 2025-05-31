@@ -11,12 +11,9 @@ spec:
     namespace: observability
 
   source:
-    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
-    chart: opentelemetry-collector
-    targetRevision: "^0.84.0"
-    helm:
-      valueFiles:
-        - $values/otel-collector/values.yaml
+    repoURL: https://github.com/tu-org/k3s_project.git   # ⇐ tu repo
+    targetRevision: main
+    path: monitoring/otel-collector                      # ruta al wrapper chart
 
   syncPolicy:
     automated:

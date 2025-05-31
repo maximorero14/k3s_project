@@ -1,8 +1,6 @@
-# Helm values for kube-prometheus-stack ≥ 72.x
-# Namespace sugerido: monitoring
 grafana:
   adminUser: admin
-  adminPassword: prom-operator               # ⇐ cámbialo o usa un Secret
+  adminPassword: prom-operator      # cámbialo o usa Secret
   service:
     type: ClusterIP
   dashboardProviders:
@@ -20,7 +18,7 @@ grafana:
   dashboards:
     default:
       jvm:
-        gnetId: 4701                         # Dashboard JVM de Micrometer
+        gnetId: 4701
         revision: 2
         datasource: Prometheus
 
@@ -28,7 +26,7 @@ prometheus:
   serviceMonitor:
     selector:
       matchExpressions:
-        - {key: release, operator: Exists}   # descubre ServiceMonitors externos
+        - {key: release, operator: Exists}
   prometheusSpec:
     podMonitorSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
