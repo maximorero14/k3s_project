@@ -14,7 +14,7 @@ spec:
     targetRevision: "~72.0"            # rama estable actual
     helm:
       values: |                        # se inyecta el values.yaml anterior
-{{ .Files.Get "helm/prometheus/values.yaml" | indent 8 }}
+        {{ .Files.Get "helm/prometheus/values.yaml" | indent 8 }}
   syncPolicy:
     automated:
       prune: true
