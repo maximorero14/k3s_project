@@ -8,37 +8,39 @@ spec:
   destination:
     namespace: monitoring
     server: https://kubernetes.default.svc
+
+  # --- POLÍTICA DE SYNC --------------------------------------------------
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true   # <-- evita la anotación gigante en los CRDs
+      - CreateNamespace=true   # crea el ns monitoring si no existe
+
+  # --- ORIGEN ------------------------------------------------------------
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
     targetRevision: 58.0.1
     helm:
       releaseName: prom-stack
+      # Si algún día aplicas los CRDs a mano, cambia a skipCrds: true
+      skipCrds: false
       values: |
         prometheusOperator:
-          trimCRDAnnotations: true   # <-- recorta los annotations enormes
+          trimCRDAnnotations: true    # recorta last-applied en los CRDs
+          admissionWebhooks:
+            patch:
+              enabled: false         # <-- elimina el hook que se atascaba
+
         grafana:
           adminPassword: "changeme"
-
-          ## ---- NUEVO ----
           service:
-            type: NodePort          # ClusterIP (default) | NodePort | LoadBalancer
-            nodePort: 32000         # opcional; deja que K8s asigne si lo quitas
-            port: 80                # puerto del Service
-            targetPort: 3000        # puerto interno del contenedor
-
-          # --- Ejemplo Ingress (Traefik) -------------
-          # ingress:
-          #   enabled: true
-          #   hosts:
-          #     - grafana.local      # o dominio real
-          #   paths:
-          #     - /
-          # --------------------------------------------
+            type: NodePort
+            nodePort: 32000
+            port: 80
+            targetPort: 3000
 
         prometheus:
           prometheusSpec:
