@@ -25,6 +25,7 @@ spec:
     targetRevision: 58.0.1
     helm:
       releaseName: prom-stack
+      skipCrds: true          # <--- ❶ Helm ya NO intentará crear/actualizar CRDs
       # Si algún día aplicas los CRDs a mano, cambia a skipCrds: true
       skipCrds: false
       values: |
