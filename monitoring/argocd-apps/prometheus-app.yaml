@@ -2,19 +2,24 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: prometheus
-  namespace: argocd
+  namespace: argocd           # deja “argocd” (el ns donde corre Argo CD)
 spec:
   project: default
+
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring
+    namespace: monitoring     # Argo lo crea si no existe
+
   source:
+    # Chart oficial remoto
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    targetRevision: "~72.0"            # rama estable actual
+    targetRevision: "~72.0"
     helm:
-      values: |                        # se inyecta el values.yaml anterior
-        {{ .Files.Get "helm/prometheus/values.yaml" | indent 8 }}
+      # Usa TU archivo de valores que está en el repo Git
+      valueFiles:
+        - $values/prometheus/values.yaml  # ruta relativa a la raíz del repo
+
   syncPolicy:
     automated:
       prune: true

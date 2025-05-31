@@ -5,16 +5,19 @@ metadata:
   namespace: argocd
 spec:
   project: default
+
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
+
   source:
     repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
     chart: opentelemetry-collector
     targetRevision: "^0.84.0"
     helm:
-      values: |
-        {{ .Files.Get "helm/otel-collector/values.yaml" | indent 8 }}
+      valueFiles:
+        - $values/otel-collector/values.yaml
+
   syncPolicy:
     automated:
       prune: true
