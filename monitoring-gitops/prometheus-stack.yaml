@@ -19,6 +19,8 @@ spec:
     helm:
       releaseName: prom-stack
       values: |
+        prometheusOperator:
+          trimCRDAnnotations: true   # <-- recorta los annotations enormes
         grafana:
           adminPassword: "changeme"
 
