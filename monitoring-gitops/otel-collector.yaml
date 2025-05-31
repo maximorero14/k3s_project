@@ -17,7 +17,7 @@ spec:
     helm:
       releaseName: otel-collector
       values: |
-        mode: gateway
+        mode: deployment
         config:
           receivers:
             otlp:
@@ -37,12 +37,4 @@ spec:
               traces:
                 receivers: [otlp]
                 processors: [batch]
-                exporters: []         # añade Tempo cuando lo tengas
-        service:
-          ports:
-            - name: otlp-grpc
-              port: 4317
-            - name: otlp-http
-              port: 4318
-            - name: prometheus
-              port: 9464
+                exporters: []
