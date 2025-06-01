@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1beta1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd        # donde reside Argo CD
+spec:
+  project: infra           # agrúpalo con otras apps de infraestructura
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 7.3.8          # versión del chart (≈ mayo 2025)
+    helm:
+      releaseName: grafana
+      values: |
+        adminUser: admin
+        adminPassword: admin
+        persistence:
+          enabled: true
+          size: 10Gi
+        service:
+          type: LoadBalancer
+        ingress:
+          enabled: true
+          hosts: [grafana.midominio.com]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true         # borra recursos huérfanos
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
