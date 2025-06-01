@@ -18,7 +18,7 @@ spec:
           enabled: true
           size: 10Gi
         service:
-          type: LoadBalancer
+          type: NodePort
         ingress:
           enabled: true
           hosts: [grafana.midominio.com]
