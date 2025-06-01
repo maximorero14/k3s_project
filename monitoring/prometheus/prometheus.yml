@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1       # usa v1beta1 solo si tu clúster lo soporta
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default                      # o “default” si no creas el proyecto
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: 27.17.0           # chart estable a 1-jun-2025  [oai_citation:0‡Artifact Hub](https://artifacthub.io/packages/helm/prometheus-community/prometheus?utm_source=chatgpt.com)
+    helm:
+      releaseName: prometheus
+      values: |                       # ——— valores mínimos para k3s local
+        service:
+          type: NodePort
+          port: 80
+          nodePort: 30900             # accederás en :30900
+        server:
+          persistentVolume:
+            size: 10Gi                # métricas ~15 días con scrape 15 s
+        extraScrapeConfigs: |
+          - job_name: 'kubernetes-nodes'
+            kubernetes_sd_configs:
+              - role: node
+            relabel_configs:
+              - action: labelmap
+                regex: __meta_kubernetes_node_label_(.+)
+          - job_name: 'kubernetes-pods'
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - action: labelmap
+                regex: __meta_kubernetes_pod_label_(.+)
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true                     # limpia recursos huérfanos
+      selfHeal: true                  # corrige drift
+    syncOptions:
+      - CreateNamespace=true          # crea “monitoring” si no existe
