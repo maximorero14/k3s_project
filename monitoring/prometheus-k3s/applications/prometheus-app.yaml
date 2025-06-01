@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://https://github.com/maximorero14/k3s_project
+    repoURL: https://github.com/maximorero14/k3s_project.git
     targetRevision: main
     path: monitoring/prometheus-k3s/prometheus
   destination:
@@ -20,3 +20,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true  # Usar server-side apply
+      - Replace=true          # Reemplazar recursos si es necesario
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jqPathExpressions:
+        - '.metadata.annotations'
