@@ -10,15 +10,12 @@ spec:
   source:
     repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
     chart: opentelemetry-collector
-    targetRevision: "0.88.0"  # Usa la versión más reciente disponible
+    targetRevision: "0.88.0"
     helm:
       values: |
         mode: deployment
-        
-        # Configuración de réplicas (reducida para solo métricas)
         replicaCount: 1
-        
-        # Configuración de recursos (optimizada para solo métricas)
+
         resources:
           limits:
             cpu: 500m
@@ -26,73 +23,58 @@ spec:
           requests:
             cpu: 100m
             memory: 200Mi
-        
-        # Configuración del collector
+
         config:
           receivers:
-            # Receptor OTLP para HTTP (solo métricas)
             otlp:
               protocols:
                 http:
                   endpoint: 0.0.0.0:4318
-          
+
           processors:
-            # Procesador de lotes para optimizar el envío
             batch:
               timeout: 10s
               send_batch_size: 512
-              send_batch_max_size: 1024
-            
-            # Procesador de recursos para enriquecer métricas
+
+            attributes/dedup_labels:
+              actions:
+                - key: service          # evitamos service=otel-collector duplicado
+                  action: delete
+
             resource:
               attributes:
-                - key: cluster
+                - key: cluster          # tu label de clúster
                   value: "k8s-cluster"
                   action: insert
-                - key: k8s.namespace.name
-                  from_attribute: k8s.namespace.name
+                - key: environment      # movemos aquí el “dev”
+                  value: "dev"
                   action: insert
-            
-            # Procesador de memoria para limitar uso
+
             memory_limiter:
               limit_mib: 1000
               spike_limit_mib: 300
               check_interval: 5s
-            
-            # Filtro de métricas para optimizar
-            filter/metrics:
-              metrics:
-                exclude:
-                  match_type: regexp
-                  metric_names:
-                    - ".*grpc.*"  # Excluir métricas gRPC innecesarias
-          
+
           exporters:
-            # Exportador para métricas (Prometheus)
             prometheus:
               endpoint: "0.0.0.0:8889"
-              namespace: "k8_auth"
-              const_labels:
-                environment: "dev"
-                cluster: "k8s-cluster"
+              namespace: "otel"
+              #  --- const_labels sin job/instance para evitar colisiones ---
+              #  Si necesitas etiquetas fijas adicionales añádelas aquí,
+              #  siempre que NO coincidan con labels variables.
+              const_labels: {}
               metric_expiration: 180m
-              enable_open_metrics: true
-            
-            # Exportador de logging para debug (opcional)
+
             logging:
               loglevel: info
-              sampling_initial: 5
-              sampling_thereafter: 200
-          
+
           service:
             pipelines:
-              # Pipeline solo para métricas
               metrics:
-                receivers: [otlp]
-                processors: [memory_limiter, resource, filter/metrics, batch]
-                exporters: [prometheus, logging]
-        
-        # Configuración de puertos (solo métricas)
+                receivers:  [otlp]
+                processors: [memory_limiter, attributes/dedup_labels, resource, batch]
+                exporters:  [prometheus, logging]
+
         ports:
           otlp-http:
             enabled: true
@@ -104,54 +86,28 @@ spec:
             containerPort: 8889
             servicePort: 8889
             protocol: TCP
-        
-        # Configuración del servicio
+
         service:
           type: ClusterIP
-          
-        # Configuración de ServiceMonitor para Prometheus
+
         serviceMonitor:
-          enabled: true
+          enabled: false
           namespace: monitoring
           labels:
             app: otel-collector
           interval: 30s
           scrapeTimeout: 10s
-        
-        # Configuración de tolerancias y afinidad
-        tolerations: []
-        nodeSelector: {}
-        affinity: {}
-        
-        # Variables de entorno adicionales
+
         extraEnvs:
           - name: OTEL_RESOURCE_ATTRIBUTES
             value: "service.name=otel-collector,service.version=1.0.0"
-        
-        # Configuración de autoscaling (ajustada para métricas)
-        autoscaling:
-          enabled: true
-          minReplicas: 1
-          maxReplicas: 5
-          targetCPUUtilizationPercentage: 70
-          targetMemoryUtilizationPercentage: 70
-
+  ## --- DESTINO: obligatorio ---
   destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  
+    server: https://kubernetes.default.svc   # mismo clúster que Argo CD
+    namespace: monitoring                    # donde quieres que se instale
+
+  ## --- Política de sincronización (opcional) ---
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true
-      allowEmpty: false
-    syncOptions:
-      - CreateNamespace=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
+      selfHeal: true  
