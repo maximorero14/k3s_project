@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://https://github.com/maximorero14/k3s_project.git
+    repoURL: https://https://github.com/maximorero14/k3s_project
     targetRevision: main
     path: monitoring/prometheus-k3s/prometheus
   destination:
