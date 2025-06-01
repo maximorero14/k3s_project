@@ -15,10 +15,29 @@ spec:
         alertmanager:
           enabled: true
         pushgateway:
-          enabled: false
+          enabled: true
+          service:
+            type: ClusterIP  # Expone el servicio internamente
+            port: 9091
+          resources:
+            limits:
+              cpu: 200m
+              memory: 50Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          # Configuración adicional del pushgateway
+          persistentVolume:
+            enabled: false  # Cambia a true si quieres persistencia
         server:
           service:
             type: NodePort  # Cambia a ClusterIP o LoadBalancer si lo necesitas
+          # Configurar Prometheus para scrape del pushgateway
+          extraScrapeConfigs: |
+            - job_name: 'pushgateway'
+              static_configs:
+                - targets: ['prometheus-pushgateway:9091']
+              honor_labels: true
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring  # Cambia si deseas otro namespace

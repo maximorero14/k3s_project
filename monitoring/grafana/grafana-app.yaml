@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 7.3.10  # Verifica en https://grafana.github.io/helm-charts si hay una más reciente
+    helm:
+      releaseName: grafana
+      values: |
+        adminUser: admin
+        adminPassword: admin
+        service:
+          type: NodePort  # Cambia si necesitas otra opción
+        persistence:
+          enabled: false  # Puedes habilitarlo si quieres datos persistentes
+  destination:
+    server: https://kubernetes.default.svc
+       extraArgs:
+        - --web.enable-feature=remote-write-receiver
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
