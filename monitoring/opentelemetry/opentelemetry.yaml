@@ -1,0 +1,113 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  labels:
+    app: otel-collector
+spec:
+  project: default
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: "0.88.0"
+    helm:
+      values: |
+        mode: deployment
+        replicaCount: 1
+
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+
+        config:
+          receivers:
+            otlp:
+              protocols:
+                http:
+                  endpoint: 0.0.0.0:4318
+
+          processors:
+            batch:
+              timeout: 10s
+              send_batch_size: 512
+
+            attributes/dedup_labels:
+              actions:
+                - key: service          # evitamos service=otel-collector duplicado
+                  action: delete
+
+            resource:
+              attributes:
+                - key: cluster          # tu label de clúster
+                  value: "k8s-cluster"
+                  action: insert
+                - key: environment      # movemos aquí el “dev”
+                  value: "dev"
+                  action: insert
+
+            memory_limiter:
+              limit_mib: 1000
+              spike_limit_mib: 300
+              check_interval: 5s
+
+          exporters:
+            prometheus:
+              endpoint: "0.0.0.0:8889"
+              namespace: "otel"
+              #  --- const_labels sin job/instance para evitar colisiones ---
+              #  Si necesitas etiquetas fijas adicionales añádelas aquí,
+              #  siempre que NO coincidan con labels variables.
+              const_labels: {}
+              metric_expiration: 180m
+
+            logging:
+              loglevel: info
+
+          service:
+            pipelines:
+              metrics:
+                receivers:  [otlp]
+                processors: [memory_limiter, attributes/dedup_labels, resource, batch]
+                exporters:  [prometheus, logging]
+
+        ports:
+          otlp-http:
+            enabled: true
+            containerPort: 4318
+            servicePort: 4318
+            protocol: TCP
+          prometheus:
+            enabled: true
+            containerPort: 8889
+            servicePort: 8889
+            protocol: TCP
+
+        service:
+          type: ClusterIP
+
+        serviceMonitor:
+          enabled: false
+          namespace: monitoring
+          labels:
+            app: otel-collector
+          interval: 30s
+          scrapeTimeout: 10s
+
+        extraEnvs:
+          - name: OTEL_RESOURCE_ATTRIBUTES
+            value: "service.name=otel-collector,service.version=1.0.0"
+  ## --- DESTINO: obligatorio ---
+  destination:
+    server: https://kubernetes.default.svc   # mismo clúster que Argo CD
+    namespace: monitoring                    # donde quieres que se instale
+
+  ## --- Política de sincronización (opcional) ---
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true  

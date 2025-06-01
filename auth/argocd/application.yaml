@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8-auth-app
+  namespace: argocd  # Namespace donde está instalado Argo CD
+  labels:
+    app: k8-auth
+  annotations:
+    # Configuración para auto-actualización de imágenes
+    argocd-image-updater.argoproj.io/image-list: k8-auth=maximorero14/k8_auth
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
+spec:
+  project: default
+  source:
+    # Opción 1: Si tienes los manifiestos en un repositorio Git
+    repoURL: https://github.com/maximorero14/k3s_project.git  # Cambia por tu repositorio
+    targetRevision: HEAD  # o una rama específica como 'main'
+    path: auth  # Ruta dentro del repo donde están los manifiestos
+    
+    # Opción 2: Si quieres usar Helm (comentado)
+    # helm:
+    #   valueFiles:
+    #     - values.yaml
+    
+  destination:
+    server: https://kubernetes.default.svc  # Cluster local
+    namespace: default  # Namespace donde desplegar la app
+  
+  syncPolicy:
+    automated:
+      prune: true      # Elimina recursos que ya no están en Git
+      selfHeal: true   # Auto-corrige si alguien modifica recursos manualmente
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true  # Crea el namespace si no existe
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Configuración de salud personalizada (opcional)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignora cambios en replicas si usas HPA
+  
+  # Configuración de notificaciones (opcional)
+  revisionHistoryLimit: 10
