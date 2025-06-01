@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd  # Asegúrate de que es el namespace donde está ArgoCD
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: 25.21.0  # Usa la versión que prefieras
+    helm:
+      releaseName: prometheus
+      values: |
+        alertmanager:
+          enabled: true
+        pushgateway:
+          enabled: false
+        server:
+          service:
+            type: NodePort  # Cambia a ClusterIP o LoadBalancer si lo necesitas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring  # Cambia si deseas otro namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
