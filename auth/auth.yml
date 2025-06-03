@@ -36,6 +36,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            
+            - name: SPRING_APPLICATION_JSON
+              valueFrom:
+                configMapKeyRef:
+                  name: k8-auth-config
+                  key: SPRING_APPLICATION_JSON
 ---
 
 apiVersion: v1
