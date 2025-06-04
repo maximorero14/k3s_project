@@ -55,4 +55,4 @@ spec:
   ports:
     - port: 80          # Puerto expuesto en el clúster
       targetPort: 8080  # Puerto en el contenedor
-      nodePort: 30080   # Puerto en el nodo (lo puedes cambiar si quieres)
+      nodePort: 30082   # Puerto en el nodo (lo puedes cambiar si quieres)
