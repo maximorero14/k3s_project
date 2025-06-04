@@ -30,6 +30,8 @@ spec:
               protocols:
                 http:
                   endpoint: 0.0.0.0:4318
+                grpc:
+                  endpoint: 0.0.0.0:4317  # Agregamos soporte para gRPC
 
           processors:
             batch:
@@ -38,15 +40,15 @@ spec:
 
             attributes/dedup_labels:
               actions:
-                - key: service          # evitamos service=otel-collector duplicado
+                - key: service
                   action: delete
 
             resource:
               attributes:
-                - key: cluster          # tu label de clúster
+                - key: cluster
                   value: "k8s-cluster"
                   action: insert
-                - key: environment      # movemos aquí el “dev”
+                - key: environment
                   value: "dev"
                   action: insert
 
@@ -59,14 +61,14 @@ spec:
             prometheus:
               endpoint: "0.0.0.0:8889"
               namespace: "otel"
-              #  --- const_labels sin job/instance para evitar colisiones ---
-              #  Si necesitas etiquetas fijas adicionales añádelas aquí,
-              #  siempre que NO coincidan con labels variables.
               const_labels: {}
               metric_expiration: 180m
 
             logging:
               loglevel: info
+
+            tempo:
+              endpoint: "http://tempo.monitoring.svc.cluster.local:14268/api/traces" 
 
           service:
             pipelines:
@@ -74,12 +76,21 @@ spec:
                 receivers:  [otlp]
                 processors: [memory_limiter, attributes/dedup_labels, resource, batch]
                 exporters:  [prometheus, logging]
+              traces:
+                receivers:  [otlp]
+                processors: [batch, resource]
+                exporters:  [tempo, logging]
 
         ports:
           otlp-http:
             enabled: true
             containerPort: 4318
             servicePort: 4318
+            protocol: TCP
+          otlp-grpc:
+            enabled: true
+            containerPort: 4317
+            servicePort: 4317
             protocol: TCP
           prometheus:
             enabled: true
@@ -110,4 +121,4 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true  
+      selfHeal: true
