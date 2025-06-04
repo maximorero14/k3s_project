@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: k8-auth-config
+  name: k8-payment-config
   labels:
-    app: k8-auth
+    app: k8-payment
 data:
   # Payment service configuration
   SPRING_APPLICATION_JSON: |
     {
       "services": {
-        "payment": {
-          "url": "http://k8-payment-service:80",
+        "fraud": {
+          "url": "http://k8-fraud-service:80",
           "timeout": 5000,
           "retries": 3
         }

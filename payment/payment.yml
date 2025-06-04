@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8-payment-deployment
+  labels:
+    app: k8-payment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k8-payment
+  template:
+    metadata:
+      labels:
+        app: k8-payment
+    spec:
+      containers:
+        - name: k8-payment
+          image: maximorero14/k8_payment:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            
+            - name: SPRING_APPLICATION_JSON
+              valueFrom:
+                configMapKeyRef:
+                  name: k8-payment-config
+                  key: SPRING_APPLICATION_JSON
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8-payment-service
+spec:
+  type: NodePort
+  selector:
+    app: k8-payment
+  ports:
+    - port: 80          # Puerto expuesto en el clúster
+      targetPort: 8080  # Puerto en el contenedor
+      nodePort: 30080   # Puerto en el nodo (lo puedes cambiar si quieres)
