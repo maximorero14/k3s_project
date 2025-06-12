@@ -15,7 +15,7 @@ spec:
       values: |
         mode: deployment
         replicaCount: 1
-
+        
         resources:
           limits:
             cpu: 500m
@@ -23,73 +23,71 @@ spec:
           requests:
             cpu: 100m
             memory: 200Mi
-
+        
         config:
           receivers:
             otlp:
               protocols:
                 http:
                   endpoint: 0.0.0.0:4318
-
+                grpc:
+                  endpoint: 0.0.0.0:4317
+          
           processors:
             batch:
               timeout: 10s
               send_batch_size: 512
-
+            
             attributes/dedup_labels:
               actions:
-                - key: service          # evitamos service=otel-collector duplicado
+                - key: service
                   action: delete
-
+            
             resource:
               attributes:
-                - key: cluster          # tu label de clúster
+                - key: cluster
                   value: "k8s-cluster"
                   action: insert
-                - key: environment      # movemos aquí el “dev”
+                - key: environment
                   value: "dev"
                   action: insert
-
+            
             memory_limiter:
-              limit_mib: 1000
-              spike_limit_mib: 300
+              limit_mib: 800
+              spike_limit_mib: 200
               check_interval: 5s
-
+          
           exporters:
             prometheus:
               endpoint: "0.0.0.0:8889"
               namespace: "otel"
-              #  --- const_labels sin job/instance para evitar colisiones ---
-              #  Si necesitas etiquetas fijas adicionales añádelas aquí,
-              #  siempre que NO coincidan con labels variables.
               const_labels: {}
               metric_expiration: 180m
-
+            
             logging:
               loglevel: info
-
+            
+            # CORREGIDO: Endpoint y configuración para Tempo
+            otlp/tempo:
+              endpoint: "http://tempo.monitoring.svc.cluster.local:4317"
+              tls:
+                insecure: true
+              headers: {}
+          
           service:
             pipelines:
               metrics:
-                receivers:  [otlp]
+                receivers: [otlp]
                 processors: [memory_limiter, attributes/dedup_labels, resource, batch]
-                exporters:  [prometheus, logging]
-
-        ports:
-          otlp-http:
-            enabled: true
-            containerPort: 4318
-            servicePort: 4318
-            protocol: TCP
-          prometheus:
-            enabled: true
-            containerPort: 8889
-            servicePort: 8889
-            protocol: TCP
+                exporters: [prometheus, logging]
+              traces:
+                receivers: [otlp]
+                processors: [memory_limiter, batch, resource]
+                exporters: [otlp/tempo, logging]  # CORREGIDO: usar otlp/tempo en lugar de tempo
 
         service:
           type: ClusterIP
-
+        
         serviceMonitor:
           enabled: false
           namespace: monitoring
@@ -97,17 +95,20 @@ spec:
             app: otel-collector
           interval: 30s
           scrapeTimeout: 10s
-
+        
         extraEnvs:
           - name: OTEL_RESOURCE_ATTRIBUTES
             value: "service.name=otel-collector,service.version=1.0.0"
-  ## --- DESTINO: obligatorio ---
+  
   destination:
-    server: https://kubernetes.default.svc   # mismo clúster que Argo CD
-    namespace: monitoring                    # donde quieres que se instale
-
-  ## --- Política de sincronización (opcional) ---
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true  
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true

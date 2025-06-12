@@ -1,0 +1,139 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka-local
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: kafka-local
+    app.kubernetes.io/component: messaging
+    environment: local
+spec:
+  project: default
+  
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: kafka
+    targetRevision: 26.8.5
+    helm:
+      parameters:
+        # Configuración básica para entorno local
+        - name: "replicaCount"
+          value: "1"
+        - name: "zookeeper.replicaCount"
+          value: "1"
+        
+        # Recursos limitados para local
+        - name: "resources.limits.memory"
+          value: "512Mi"
+        - name: "resources.limits.cpu"
+          value: "500m"
+        - name: "resources.requests.memory"
+          value: "256Mi"
+        - name: "resources.requests.cpu"
+          value: "250m"
+        
+        # Zookeeper con recursos limitados
+        - name: "zookeeper.resources.limits.memory"
+          value: "256Mi"
+        - name: "zookeeper.resources.limits.cpu"
+          value: "250m"
+        - name: "zookeeper.resources.requests.memory"
+          value: "128Mi"
+        - name: "zookeeper.resources.requests.cpu"
+          value: "100m"
+        
+        # Persistencia deshabilitada para pruebas locales
+        - name: "persistence.enabled"
+          value: "false"
+        - name: "zookeeper.persistence.enabled"
+          value: "false"
+        
+        # Configuración de red simple
+        - name: "service.type"
+          value: "ClusterIP"
+        - name: "service.ports.client"
+          value: "9092"
+        
+        # Configuraciones de Kafka simplificadas
+        - name: "listeners.client.protocol"
+          value: "PLAINTEXT"
+        - name: "listeners.controller.protocol"
+          value: "PLAINTEXT"
+        - name: "listeners.interbroker.protocol"
+          value: "PLAINTEXT"
+        
+        # JVM heap size reducido para local
+        - name: "heapOpts"
+          value: "-Xmx256m -Xms256m"
+        - name: "zookeeper.heapSize"
+          value: "128"
+        
+        # Configuración de logs simplificada
+        - name: "logRetentionBytes"
+          value: "1073741824"  # 1GB
+        - name: "logRetentionHours"
+          value: "24"          # 24 horas
+        - name: "numPartitions"
+          value: "3"
+        
+        # Configuración de réplicas para testing
+        - name: "defaultReplicationFactor"
+          value: "1"
+        - name: "offsetsTopicReplicationFactor"
+          value: "1"
+        - name: "transactionStateLogReplicationFactor"
+          value: "1"
+        - name: "transactionStateLogMinIsr"
+          value: "1"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka-local
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  revisionHistoryLimit: 3
+  
+  # Configuración de salud personalizada
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+---
+# Namespace para Kafka si no existe
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka-local
+  labels:
+    name: kafka-local
+    environment: local
+---
+# ConfigMap opcional con configuraciones adicionales
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-local-config
+  namespace: kafka-local
+data:
+  README.md: |
+    # Kafka Local - Configuración de Pruebas
+    
+    ## Conexión
+    - Broker interno: kafka-local:9092
+    - Zookeeper: kafka-local-zookeeper:2181

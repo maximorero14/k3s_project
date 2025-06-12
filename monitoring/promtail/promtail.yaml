@@ -1,0 +1,101 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: promtail
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/promtail
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: promtail
+    targetRevision: 6.15.3  # Asegúrate de que esta sea la versión adecuada
+    helm:
+      values: |
+        config:
+          clients:
+            - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
+        snippets:
+          pipelineStages:
+            - match:
+                selector: '{app=~"k8-auth|k8-fraud|k8-payment"}'
+                stages:
+                  - labels:
+                      app:
+                      level:
+                      endpoint:
+                      status_class:
+
+          positions:
+            filename: /tmp/positions.yaml
+
+          server:
+            log_level: info
+            http_listen_port: 3101
+
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+          scrapeTimeout: 10s
+          labels:
+            release: prometheus
+
+        extraScrapeConfigs:
+          - job_name: kubernetes-pods
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_label_app]
+                target_label: app
+              - source_labels: [__meta_kubernetes_namespace]
+                target_label: namespace
+              - source_labels: [__meta_kubernetes_pod_name]
+                target_label: pod
+              - source_labels: [__meta_kubernetes_pod_container_name]
+                target_label: container
+              - source_labels: [__meta_kubernetes_pod_label_app]
+                regex: .+
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_annotation_promtail_logs_enabled]
+                regex: "true"
+                action: keep
+              - action: replace
+                source_labels: [__meta_kubernetes_pod_node_name]
+                target_label: __host__
+
+        podLabels:
+          app.kubernetes.io/name: promtail
+
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: 500m
+          requests:
+            memory: 128Mi
+            cpu: 100m
+
+        tolerations: []
+        affinity: {}
+        nodeSelector: {}
+
+        rbac:
+          create: true
+        serviceAccount:
+          create: true
+          name: promtail
+        daemonset:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
