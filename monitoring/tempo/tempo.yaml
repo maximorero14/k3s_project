@@ -10,57 +10,95 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: tempo
-    targetRevision: "latest"
+    targetRevision: "1.10.1"
     helm:
       values: |
-        replicaCount: 1
-
-        resources:
-          limits:
-            cpu: 500m
-            memory: 1Gi
-          requests:
-            cpu: 100m
-            memory: 200Mi
-
-        config:
-          auth_enabled: false
-          server:
-            http_listen_port: 3200
-          distributor:
-            receivers:
-              otlp:
-                protocols:
-                  grpc:
-                    endpoint: 0.0.0.0:4317
-                  http:
-                    endpoint: 0.0.0.0:4318
-          ingester:
-            trace_idle_period: 5m
-            max_block_duration: 2h
-          storage:
-            trace:
-              backend: local
-              local:
-                path: /var/tempo/traces
-
+        # Configuración básica de replicas
+        tempo:
+          replicas: 1
+          
+          # Configuración de recursos
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          
+          # Configuración principal de Tempo
+          config: |
+            auth_enabled: false
+            
+            server:
+              http_listen_port: 3200
+              log_level: info
+            
+            distributor:
+              receivers:
+                otlp:
+                  protocols:
+                    grpc:
+                      endpoint: 0.0.0.0:4317
+                    http:
+                      endpoint: 0.0.0.0:4318
+            
+            ingester:
+              trace_idle_period: 5m
+              max_block_duration: 2h
+              lifecycler:
+                ring:
+                  kvstore:
+                    store: inmemory
+            
+            storage:
+              trace:
+                backend: local
+                local:
+                  path: /var/tempo/traces
+            
+            querier:
+              frontend_worker:
+                frontend_address: tempo-query-frontend:9095
+        
+        # Configuración de persistencia - Sin especificar storageClassName para usar el por defecto
         persistence:
           enabled: true
           size: 10Gi
-          storageClass: standard
-
+          # storageClassName omitido para usar el por defecto (local-path)
+          accessModes:
+            - ReadWriteOnce
+        
+        # Configuración del servicio
         service:
           type: ClusterIP
-
+          port: 3200
+        
+        # Variables de entorno adicionales
         extraEnvs:
           - name: TEMPO_LOG_LEVEL
             value: "info"
-
+        
+        # Configuración de seguridad
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          fsGroup: 10001
+        
+        # Configuración de ServiceMonitor para Prometheus (opcional)
+        serviceMonitor:
+          enabled: false
+          
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-
+  
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - Replace=true

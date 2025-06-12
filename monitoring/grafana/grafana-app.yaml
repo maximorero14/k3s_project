@@ -20,8 +20,6 @@ spec:
           enabled: false  # Puedes habilitarlo si quieres datos persistentes
   destination:
     server: https://kubernetes.default.svc
-       extraArgs:
-        - --web.enable-feature=remote-write-receiver
     namespace: monitoring
   syncPolicy:
     automated:

@@ -5,7 +5,6 @@ metadata:
   labels:
     app: k8-payment
 data:
-  # Payment service configuration
   SPRING_APPLICATION_JSON: |
     {
       "services": {

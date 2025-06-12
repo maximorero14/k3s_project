@@ -1,3 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8-payment-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/maximorero14/k3s_project.git
+    targetRevision: HEAD
+    path: payment
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+# Original Deployment YAML
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,8 +62,16 @@ spec:
                 configMapKeyRef:
                   name: k8-payment-config
                   key: SPRING_APPLICATION_JSON
----
 
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-postgresql.postgres.svc.cluster.local:5432/mydb"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "myuser"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "mypassword"
+            - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+              value: "org.postgresql.Driver"
+---
 apiVersion: v1
 kind: Service
 metadata:
